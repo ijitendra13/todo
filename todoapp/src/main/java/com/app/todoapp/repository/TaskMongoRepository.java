@@ -1,10 +1,12 @@
-//package com.app.todoapp.repository;
-//
-//import com.app.todoapp.model.Task;
-//import org.springframework.data.jpa.repository.JpaRepository;
-//
-//public interface TaskRepository extends JpaRepository<Task,Long> {
-//}
+package com.app.todoapp.repository;
+
+import com.app.todoapp.model.Task;
+import org.springframework.data.mongodb.repository.MongoRepository;
+
+
+public interface TaskMongoRepository extends MongoRepository<Task,String>
+{
+}
 
 //@Entity is an annotation in JPA used to mark a class as a database table.
 //✔ What it does
