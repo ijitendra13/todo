@@ -21,7 +21,7 @@
 //
 //    @GetMapping
 //    public ResponseEntity<?> getTasks(){
-//        ResponseEntity<?> tasks=taskService.getAllTasks();
+//        ResponseEntity<?> tasks=taskService.getAllTasksOfUser();
 //        System.out.println(tasks);
 //        return tasks;
 //    }
@@ -40,8 +40,11 @@
 //
 package com.app.todoapp.controller;
 import com.app.todoapp.model.Task;
+import com.app.todoapp.model.User;
 import com.app.todoapp.repository.TaskMongoRepository;
 import com.app.todoapp.services.TaskService;
+import com.app.todoapp.services.UserService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -53,27 +56,36 @@ import java.util.Map;
 import java.util.Optional;
 
 
-
 @RestController
 @RequestMapping("/tasks")
 @CrossOrigin(origins = "http://localhost:4200")
+@RequiredArgsConstructor
 public class TaskController {
-    @Autowired
-    private TaskMongoRepository taskMongoRepository;
+    private final TaskMongoRepository taskMongoRepository;
+    private final TaskService taskService;
+    private final UserService userService;
 
-    @Autowired
-    private TaskService taskService;
-
-    @GetMapping
-    public ResponseEntity<?> getAllTasks() {
+    @GetMapping()
+    public ResponseEntity<?> getAllTasksOfUser() {
         List<Task> tasks=taskService.getAllTasks();
+
         if(tasks!=null && !tasks.isEmpty()){
             return new ResponseEntity<>(tasks,HttpStatus.OK);
         }
-        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+        return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+    }
+    @GetMapping("/{userName}")
+    public ResponseEntity<?> getAllTasksOfUser(@PathVariable String userName) {
+        User user=userService.findByUserName(userName);
+//        List<Task> tasks=taskService.getAllTasksOfUser();
+        List<Task>tasks=user.getTasks();
+        if(tasks!=null && !tasks.isEmpty()){
+            return new ResponseEntity<>(tasks,HttpStatus.OK);
+        }
+        return new ResponseEntity<>(HttpStatus.NOT_FOUND);
     }
 
-    @GetMapping("/{id}")
+    @GetMapping("/id/{id}")
     public ResponseEntity<Task> getTasksById(@PathVariable String id) {
         Optional<Task> task=taskService.getTask(id);
         if(task.isPresent()){
@@ -82,10 +94,10 @@ public class TaskController {
         return new ResponseEntity<>(HttpStatus.NOT_FOUND);
     }
 
-    @PostMapping
-    public ResponseEntity<Task> createTask(@RequestBody Task task) {
+    @PostMapping("/{userName}")
+    public ResponseEntity<Task> createTask(@RequestBody Task task,@PathVariable String userName) {
         try{
-            taskService.addTask(task);
+            taskService.saveTask(task,userName);
             return new ResponseEntity<>(task,HttpStatus.CREATED);
         }
         catch (Exception e){
@@ -93,26 +105,18 @@ public class TaskController {
         }
     }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<?> deleteTask(@PathVariable String id) {
-        boolean deleted = taskService.deleteTask(id);
+    @DeleteMapping("/id/{id}/{userName}")
+    public ResponseEntity<?> deleteTask(@PathVariable String id,@PathVariable String userName) {
+        boolean deleted = taskService.deleteTask(id,userName);
         if (!deleted) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Task not found");
         }
-        return ResponseEntity.noContent().build();   // 204 — successful delete, no body
+        return ResponseEntity.noContent().build();   // 204 — successful delete, nobody
     }
 
-    @PatchMapping("/{id}")
-    public Task updateTask(@PathVariable String id, @RequestBody Map<String, Object> updates) {
-        var taskOpt = taskMongoRepository.findById(id);
-        if (taskOpt.isPresent()) {
-            var taskEntity = taskOpt.get();
-            if (updates.containsKey("isCompleted")) {
-                taskEntity.setCompleted((Boolean) updates.get("isCompleted"));
-            }
-            return taskMongoRepository.save(taskEntity);
-        } else {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Task not found");
-        }
+    @PatchMapping("/id/{id}")
+    public ResponseEntity<?> updateTask(@PathVariable String id, @RequestBody Map<String, Object> updates) {
+        Task updated = taskService.updateTaskFields(id, updates);
+        return new ResponseEntity<>(updated,HttpStatus.OK);
     }
 }
